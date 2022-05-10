@@ -1,30 +1,7 @@
-const {useState} = React;
-const {Button, Container, List, ListItem, ListItemText, Box  } = MaterialUI;
+const {useState, useEffect} = React;
+const {Button, Container, List, ListItem, ListItemText, Box, Alert, useMediaQuery } = MaterialUI;
 
-const initialLeftHandListData = [
-  'Liam',
-  'Noah',
-  'Oliver',
-  'Elijah',
-  'William',
-  'James',
-  'Benjamin',
-  'Lucas',
-  'Henry',
-  'Alexander',
-  'Mason',
-  'Michael',
-  'Ethan',
-  'Daniel',
-  'Jacob',
-  'Logan',
-  'Jackson',
-  'Levi',
-  'Sebastian',
-  'Mateo',
- ];
- 
- const initialLeftHandListData2 = [
+ const initialLeftHandListData = [
   {id: 3, text: 'Elijah'},
   {id: 4, text: 'William'},
   {id: 5, text: 'James'},
@@ -44,36 +21,35 @@ const initialLeftHandListData = [
   {id: 19, text: 'Mateo'},
  ];
 
- const initialLeftHandListData3 = [
+ const initialRightHandListData = [
   {id: 0, text: 'Liam'},
   {id: 1, text: 'Noah'},
   {id: 2, text: 'Oliver'},
  ];
   
 
-const Instructions = ()=>{
-  return (<p>Welcome to the 3-pane coding view. We've started you off with a basic <u>React</u> project, but feel free to replace it with whatever suits your needs. You can write code separately across the panes or you can write JS and CSS inline in the <b>HTML</b> file.</p>)
-}
-
-
 // Component -  section toolbar
 const SectionToolBar = ({list = [], setSelectionfx = () => {} }) => {
+  const [selectedIndex, setSelectedIndex] = useState();
+
+  const handleSelection = (index) => {
+    setSelectedIndex(index);
+  }
+
   return (
     <Container maxWidth="sm">
-      <Box
-        sx={{
-          width: 300,
-          height: 300,
-          overflow: "scroll",
-        }}  
-      >
+      <Box className="toolbar-list">
         {
           //toolbar list
-          <List sx={{ width: '100%', maxWidth: 360, bgcolor: 'background.paper' }}>
+          <List>
               {Object.keys(list).map((item, i) => (
                 // loop through and array of objects
-                <ListItem key={i}>
-                    <ListItemText primary={list[item].text} onClick={() => setSelectionfx(list[item].text)}/>
+                <ListItem selected={selectedIndex === i} key={i} onClick={() => {
+                    setSelectionfx(list[item]);
+                    handleSelection(i);
+                  }
+                }>
+                    <ListItemText primary={list[item].text}/>
                 </ListItem>
               ))}
           </List>
@@ -87,73 +63,79 @@ const SectionToolBar = ({list = [], setSelectionfx = () => {} }) => {
 
 
 const App = () => {
-// State to store current available list 
-const [availableList, setAvailableList] = useState(initialLeftHandListData2);
-// State to store current toolbar buttons 
-const [currentList, setCurrentList] = useState(initialLeftHandListData3);
+const matches = useMediaQuery('(min-width:780px)');
 
-// State to save selected choice 
-const [selection, setSelection] = useState('');
+// States for lists
+const [availableList, setAvailableList] = useState(initialLeftHandListData);
+const [currentList, setCurrentList] = useState(initialRightHandListData);
 
+// States for selected choice
+const [selection, setSelection] = useState();
+
+// States for ui feedback
+const [error, setError] = useState(false);
+const [success, setSuccess] = useState(false);
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setError(false);
+    setSuccess(false);
+  }, 5000);
+  return () => clearTimeout(timer);
+}, []);
 
 const setCurrentSelection = (value) => {
     setSelection(value);
 }
 
-
-
-// #region Add Function
-  const add = () => {
-    // check to see if selection is empty
-    if(selection == '') 
-    return;
-    // removes from available list
-    const newAvailableList = availableList.filter((item) => item.text != selection)
-    setAvailableList(newAvailableList);
-    
-    // adds to current list
-    const objectSelected = availableList.filter((item) => item.text == selection);
-    currentList.push(objectSelected[0]);
-    setCurrentList(currentList);
-
-    // clear out selection 
-    setSelection('');
-  }
-// #endregion
-
-// #region Remove Function
-const remove = () => {
-  // check to see if selection is empty
-  if(selection == '') 
-    return;
-  // removes from current list
-  const newCurrentList = currentList.filter((item) => item.text != selection)
-  setCurrentList(newCurrentList);
-  
-  // adds to available list
-  const objectSelected = currentList.filter((item) => item.text == selection);
-  availableList.push(objectSelected[0]);
-  setAvailableList(availableList);
-
-  // clear out selection 
-  setSelection('');
+const handleClearStatus = (type) => {
+  if(type === 'error') setError(false);
+  if(type === 'ok') setSuccess(false);
 }
-// #endregion
+
+const add_or_remove = (fromList, addToList, removeFromFx, addToFx) => {  
+  if(selection === null || fromList.filter(i => i.id === selection.id).length === 0) {
+    return setError(true);
+  }  
+
+  const newFromList = fromList.filter(i => i.id != selection.id);
+  removeFromFx(newFromList);
+
+  const objectSelected = fromList.filter(i => i.id === selection.id);
+  addToList.push(objectSelected[0]);
+  addToFx(addToList);
+
+  setSelection('');
+  return setSuccess(true);
+}
+
 
   return (
-    <div className="App">
-      <div>
-      <p>Available toolbar buttons:</p>
-        <SectionToolBar list={availableList} setSelectionfx={setCurrentSelection}/>
-      </div>
-      
-      <Button onClick={() => { remove() }} variant="text">Remove ^</Button>
-
-      <Button onClick={() => add() }variant="text">Add v</Button>
-      <div>
-        <p>Current Toolbar buttons:</p>
-        <SectionToolBar list={currentList} setSelectionfx={setCurrentSelection}/>
-      </div>
+    <div className="App">      
+      {error && <Alert onClose={() => handleClearStatus('error')} severity="error"> Sorry — <strong>Action was not process, please try again</strong></Alert>}
+      {success && <Alert onClose={() => handleClearStatus('ok')} severity="success">Success — <strong>your list has been updated check it out!</strong></Alert>}
+      <Box className="toolbar-wrapper">
+        <div>
+          <h2 className="toolbar-title">Available toolbar buttons:</h2>
+          <SectionToolBar list={availableList} setSelectionfx={setCurrentSelection}/>
+        </div>
+        
+        <Box className="button-wrapper" sx={{ '& button': { m: 1 } }}>
+          <p>{ selection && `Selected: ${selection.text}`} </p>
+          <Button size={"small"} onClick={() => add_or_remove(currentList, availableList, setCurrentList, setAvailableList)} variant="contained">
+            <span class="material-icons">{!matches ? 'arrow_upward' : 'west'}</span>
+             Remove 
+          </Button>
+          <Button size={"small"} onClick={() => add_or_remove(availableList, currentList, setAvailableList, setCurrentList)} variant="contained">
+            Add 
+            <span class="material-icons">{!matches ? 'arrow_downward' : 'east'}</span>
+          </Button>
+        </Box>
+        <div>
+          <h2 className="toolbar-title">Current Toolbar buttons:</h2>
+          <SectionToolBar list={currentList} setSelectionfx={setCurrentSelection}/>
+        </div>
+      </Box>
     </div>
   )
 }
